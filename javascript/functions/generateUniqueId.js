@@ -1,8 +1,24 @@
-const generateUniqueId = (size = 16) => {
+function* generator() {
+  let previousTimestamp = Date.now().toString(36);
+  let collisionCount = 0;
+  while (true) {
+    const timestampString = Date.now().toString(36);
+    if (previousTimestamp !== timestampString) {
+      collisionCount = 0;
+      previousTimestamp = timestampString;
+      yield timestampString;
+    } else {
+      yield previousTimestamp + collisionCount.toString();
+      collisionCount++;
+    }
+  }
+}
+const generatorFn = generator();
+const generateUniqueId = ({ length = 16 }) => {
   const chars =
     "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  let id = size < 16 ? "" : Date.now().toString(36);
-  while (id.length < size) {
+  let id = length < 12 ? "" : generatorFn.next().value;
+  while (id.length < length) {
     const char = chars[Math.floor(Math.random() * chars.length)];
     if (id.length & 1) {
       id += char;
@@ -53,9 +69,9 @@ const generateUniqueId6 = ({ length = 16 } = {}) => {
 
 let map = new Map();
 let i = 1;
-while (true) {
+while (100000 > i) {
   i++;
-  const id = generateUniqueId6({ length: 13 });
+  const id = generateUniqueId({ length: 13 });
   console.log(id);
   if (map.has(id)) {
     console.log("Existed-" + id);
