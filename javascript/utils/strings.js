@@ -30,3 +30,32 @@ export function capitalizeFirstLetter(string, separator = " ") {
   const capitalizedString = capitalizedWords.join(" ");
   return capitalizedString;
 }
+
+export const camelCaseSeparator = (
+  str = "",
+  latterCase = "FIRST",
+  separator = " "
+) => {
+  switch (latterCase) {
+    case "FIRST":
+      str = str.slice(0, 1).toUpperCase() + str.slice(1);
+      return str
+        .replace(/([a-z])([A-Z])/g, "$1" + separator + "$2")
+        .replace(/([A-Z])([A-Z][a-z])/g, "$1" + separator + "$2");
+    case "LOWER":
+      return str
+        .replace(/([a-z])([A-Z])/g, "$1" + separator + "$2")
+        .replace(/([A-Z])([A-Z][a-z])/g, "$1" + separator + "$2")
+        .toLowerCase();
+    case "UPPER":
+      return str
+        .replace(/([a-z])([A-Z])/g, "$1" + separator + "$2")
+        .replace(/([A-Z])([A-Z][a-z])/g, "$1" + separator + "$2")
+        .toUpperCase();
+    case "NONE":
+    default:
+      return str
+        .replace(/([a-z])([A-Z])/g, "$1" + separator + "$2")
+        .replace(/([A-Z])([A-Z][a-z])/g, "$1" + separator + "$2");
+  }
+};
