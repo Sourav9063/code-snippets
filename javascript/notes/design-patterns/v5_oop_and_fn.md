@@ -142,15 +142,25 @@ These patterns abstract the object instantiation process, making systems indepen
 * **Functional Approach:**
     ```javascript
     // Using closure to hold the single instance
-    const createLogger = () => { // [cite: 9]
+    const createLogger = () => {
+      // [cite: 9]
       let instance; // [cite: 9]
-      return () => { // [cite: 10]
-        if (!instance) instance = { logs: [], log: (msg) => console.log(msg) }; // [cite: 10]
+      return () => {
+        // [cite: 10]
+        if (!instance)
+          instance = {
+            logs: [],
+            log: function (msg) {
+              this.logs.push(msg);
+              console.log(msg);
+            },
+          }; // [cite: 10]
         return instance; // [cite: 11]
       };
     };
     const getLogger = createLogger(); // [cite: 11]
-    const loggerA = getLogger(); const loggerB = getLogger(); // [cite: 11]
+    const loggerA = getLogger();
+    const loggerB = getLogger(); // [cite: 11]
     console.log(loggerA === loggerB); // true [cite: 11]
     ```
 
