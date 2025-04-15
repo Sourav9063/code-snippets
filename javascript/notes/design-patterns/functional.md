@@ -195,3 +195,164 @@ Functional programming emphasizes pure functions, immutability, function composi
     console.log("Area:", calculateArea(5)); // Still the same
     console.log("Timestamped:", getTimestampedMessage("Test")); // Different each time
     ```
+Okay, let's delve into a few more concepts and patterns commonly found in functional JavaScript programming, building upon the previous list.
+
+**7. Memoization**
+
+* **Concept:** An optimization technique where the results of expensive function calls are cached based on the inputs. If the same inputs occur again, the cached result is returned immediately, avoiding redundant computation. It's a specific application of caching, often implemented using closures.
+* **Use Case:** Speeding up computationally intensive pure functions (like calculating Fibonacci numbers, complex data transformations), caching results from API calls or database queries based on their parameters (though side effects need careful handling).
+* **Example:**
+    ```javascript
+    // Generic memoization HOF
+    const memoize = (fn) => {
+      const cache = new Map(); // Use a Map for better key handling
+      return (...args) => {
+        const key = JSON.stringify(args); // Simple key generation (watch out for object order issues)
+        if (cache.has(key)) {
+          console.log(`Memoization: Cache hit for key ${key}`);
+          return cache.get(key);
+        } else {
+          console.log(`Memoization: Cache miss for key ${key}. Computing...`);
+          const result = fn(...args);
+          cache.set(key, result);
+          return result;
+        }
+      };
+    };
+
+    // An expensive function (e.g., recursive Fibonacci - inefficiently written for demo)
+    const slowFib = (n) => {
+      if (n <= 1) return n;
+      return slowFib(n - 1) + slowFib(n - 2);
+    };
+
+    const memoizedFib = memoize(slowFib);
+
+    console.time("Fib 35 (Memoized)");
+    console.log("Fib(35):", memoizedFib(35)); // Computes relatively quickly
+    console.timeEnd("Fib 35 (Memoized)");
+
+    console.time("Fib 35 (Memoized again)");
+    console.log("Fib(35) again:", memoizedFib(35)); // Returns instantly from cache
+    console.timeEnd("Fib 35 (Memoized again)");
+
+    // Compare with non-memoized (would be very slow)
+    // console.time("Fib 35 (Slow)");
+    // console.log("Fib(35) slow:", slowFib(35)); // Takes significant time
+    // console.timeEnd("Fib 35 (Slow)");
+    ```
+
+**8. Functor**
+
+* **Concept:** A design pattern (originating from category theory) representing a "container" or "context" that holds a value and defines a `map` operation. The `map` operation applies a given function to the value(s) inside the container *without changing the container's structure*, returning a *new* container of the same type holding the result(s). Arrays (`Array.prototype.map`), Promises (`Promise.prototype.then` acts like map), and Optionals/Maybes are common examples of Functors in practice.
+* **Use Case:** Applying functions to values that might be wrapped in a context (like an array, a potentially missing value, an asynchronous operation), abstracting the process of applying a function over different data structures/contexts.
+* **Example (Illustrating Array as a Functor):**
+    ```javascript
+    const numbers = [1, 2, 3];
+    const addOne = x => x + 1;
+
+    // Array's map applies 'addOne' to each value inside the array (container)
+    // It returns a *new* array (container) with the results.
+    const incrementedNumbers = numbers.map(addOne);
+
+    console.log("Original Array:", numbers);           // [ 1, 2, 3 ]
+    console.log("Incremented Array:", incrementedNumbers); // [ 2, 3, 4 ]
+
+    // Functor laws (informally):
+    // 1. Identity: container.map(x => x) === container
+    // 2. Composition: container.map(x => f(g(x))) === container.map(g).map(f)
+    ```
+* **Example (Custom Functor - Maybe/Optional):**
+    ```javascript
+    // Represents a value that might be null/undefined
+    const Maybe = {
+      // Wraps a potentially null value
+      of: (value) => ({
+        // The map operation: applies 'fn' only if value is not null/undefined
+        map: (fn) => (value === null || value === undefined ? Maybe.of(null) : Maybe.of(fn(value))),
+        // Helper to get the value out or return a default
+        getOrElse: (defaultValue) => (value === null || value === undefined ? defaultValue : value),
+        // For logging/inspection
+        toString: () => `Maybe(${value})`
+      })
+    };
+
+    const getNameLength = (user) => Maybe.of(user) // Wrap user (might be null)
+      .map(u => u.name)         // Get name (returns Maybe(null) if user is null)
+      .map(name => name.length) // Get length (returns Maybe(null) if name was null)
+      .getOrElse(0);           // Get length or default to 0
+
+    const user1 = { name: "Alice" };
+    const user2 = null;
+    const user3 = { name: null };
+
+    console.log(`User 1 Name Length: ${getNameLength(user1)}`); // Output: 5
+    console.log(`User 2 Name Length: ${getNameLength(user2)}`); // Output: 0
+    console.log(`User 3 Name Length: ${getNameLength(user3)}`); // Output: 0
+    ```
+
+**9. Monad**
+
+* **Concept:** A more advanced pattern (also from category theory) that builds upon Functors. Monads provide a way to sequence computations, especially those that involve a context (like the `Maybe` example above, asynchronous operations via Promises, or operations that might fail via `Either`). They define a `flatMap` (or `chain`, `bind`) operation in addition to `map`. `flatMap` is similar to `map`, but it prevents nested contexts (e.g., `Maybe(Maybe(value))` becomes `Maybe(value)`). Promises (`.then` acts like `flatMap` when the callback returns another Promise) are the most common Monadic structure JS developers encounter daily.
+* **Use Case:** Handling null/undefined values gracefully (Maybe/Optional), managing asynchronous operations sequentially (Promise), handling errors without exceptions (Either), managing state functionally.
+* **Example (Promise as a Monad):**
+    ```javascript
+    const getUser = (userId) => {
+      console.log(`Workspaceing user ${userId}...`);
+      // Simulates an async API call returning a Promise (a Monad)
+      return new Promise(resolve => setTimeout(() => resolve({ id: userId, name: `User_${userId}` }), 50));
+    };
+
+    const getSettings = (user) => {
+      console.log(`Workspaceing settings for ${user.name}...`);
+      return new Promise(resolve => setTimeout(() => resolve({ userId: user.id, theme: 'dark' }), 50));
+    };
+
+    // Chaining asynchronous operations using .then (flatMap-like behavior)
+    getUser(123)
+      .then(user => {
+        // The function passed to .then returns a *new* Promise
+        return getSettings(user);
+      })
+      .then(settings => {
+        // This .then receives the *resolved value* of the settings Promise, not a nested Promise
+        console.log(`User settings received:`, settings);
+      })
+      .catch(error => {
+        console.error("An error occurred in the chain:", error);
+      });
+
+    // Without the flatMap/.then behavior, you might end up with Promise<Promise<Settings>>
+    ```
+* **Example (Custom Maybe Monad):**
+    ```javascript
+    // Extending our Maybe Functor to be a Monad
+    const MaybeMonad = {
+      of: (value) => ({
+        map: (fn) => (value === null || value === undefined ? MaybeMonad.of(null) : MaybeMonad.of(fn(value))),
+
+        // flatMap (or chain): applies 'fn' which MUST return another MaybeMonad
+        flatMap: (fn) => (value === null || value === undefined ? MaybeMonad.of(null) : fn(value)),
+
+        getOrElse: (defaultValue) => (value === null || value === undefined ? defaultValue : value),
+        toString: () => `MaybeMonad(${value})`
+      })
+    };
+
+    // Function that might return a Maybe (e.g., safe property access)
+    const getProp = (prop) => (obj) =>
+      MaybeMonad.of(obj ? obj[prop] : null);
+
+
+    const user = { address: { street: "123 Main St" } };
+    const userNoAddress = { name: "Bob" };
+
+    // Chain operations that might fail (return MaybeMonad(null))
+    const getStreet = (u) => MaybeMonad.of(u) // Start with Maybe(user)
+        .flatMap(getProp('address'))    // Returns Maybe(address) or Maybe(null)
+        .flatMap(getProp('street'));     // Returns Maybe(street) or Maybe(null)
+
+    console.log(`Street for user: ${getStreet(user).getOrElse("N/A")}`);         // Output: 123 Main St
+    console.log(`Street for userNoAddress: ${getStreet(userNoAddress).getOrElse("N/A")}`); // Output: N/A
+    ```
+
