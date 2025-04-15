@@ -355,4 +355,210 @@ Okay, let's delve into a few more concepts and patterns commonly found in functi
     console.log(`Street for user: ${getStreet(user).getOrElse("N/A")}`);         // Output: 123 Main St
     console.log(`Street for userNoAddress: ${getStreet(userNoAddress).getOrElse("N/A")}`); // Output: N/A
     ```
+    Certainly! Here are additional functional programming patterns and concepts relevant to JavaScript, expanding on the previous list:
+
+---
+
+**10. Either (Result) Monad**
+
+* **Concept:** Represents a value that can be one of two possibilities: a successful result (`Right`) or an error (`Left`). Forces explicit handling of both success and error cases, avoiding `try/catch` blocks and encouraging error-forwarding in pipelines.
+* **Use Case:** Functional error handling, composing operations that might fail (e.g., validation, API calls), building robust data processing pipelines.
+* **Example:**
+    ```javascript
+    const Either = {
+      Left: (value) => ({
+        map: () => Either.Left(value), // Ignores mapping on Left
+        catch: (fn) => fn(value),      // Handle error
+        isLeft: true
+      }),
+      Right: (value) => ({
+        map: (fn) => Either.Right(fn(value)),
+        catch: () => Either.Right(value), // Ignores catch on Right
+        isLeft: false
+      })
+    };
+
+    // Example: Safe division (avoid division by zero)
+    const safeDivide = (a, b) => 
+      b === 0 ? Either.Left("Division by zero") : Either.Right(a / b);
+
+    // Usage: Chaining with error handling
+    safeDivide(10, 2)
+      .map(result => result * 3)
+      .map(result => `Result: ${result}`)
+      .catch(error => `Error: ${error}`); // "Result: 15"
+
+    safeDivide(10, 0)
+      .map(result => result * 3) // Skipped
+      .catch(error => `Error: ${error}`); // "Error: Division by zero"
+    ```
+
+---
+
+**11. Lenses**
+
+* **Concept:** A functional pattern for accessing and immutably modifying deeply nested properties in objects. A lens combines a "getter" and a "setter" that returns a new object with the updated value.
+* **Use Case:** Managing complex state immutably (common in Redux), updating deeply nested data without mutation.
+* **Example (Using Ramda.js Library):**
+    ```javascript
+    import * as R from 'ramda';
+
+    const user = { 
+      profile: { 
+        name: 'Alice', 
+        address: { city: 'Paris' } 
+      } 
+    };
+
+    // Create a lens to access user.profile.address.city
+    const cityLens = R.lensPath(['profile', 'address', 'city']);
+
+    // Get the city
+    console.log(R.view(cityLens, user)); // "Paris"
+
+    // Set the city immutably
+    const updatedUser = R.set(cityLens, 'Berlin', user);
+    console.log(updatedUser.profile.address.city); // "Berlin"
+    console.log(user.profile.address.city);        // "Paris" (original unchanged)
+    ```
+
+---
+
+**12. Transducers**
+
+* **Concept:** Efficient composable transformation pipelines that process collections (arrays, streams) in a single pass. Transducers decouple transformations (like `map`, `filter`) from the data structure itself.
+* **Use Case:** Optimizing data processing pipelines (e.g., large datasets), reusing transformation logic across different data structures.
+* **Example:**
+    ```javascript
+    // Using Ramda.js's transducer utils
+    import * as R from 'ramda';
+
+    const numbers = [1, 2, 3, 4, 5];
+
+    // Compose transformations into a transducer
+    const transducer = R.compose(
+      R.map(x => x * 2),    // Double
+      R.filter(x => x > 5)  // Filter values >5
+    );
+
+    // Apply transducer to array (single iteration)
+    const result = R.into([], transducer, numbers);
+    console.log(result); // [6, 8, 10]
+
+    // Works with other data structures (e.g., streams)
+    ```
+
+---
+
+**13. Reactive Programming (Observables)**
+
+* **Concept:** Treats data streams (events, async operations) as sequences that can be transformed using functional operators (`map`, `filter`, `merge`). Implemented via libraries like RxJS.
+* **Use Case:** Handling complex async workflows (user interactions, WebSocket streams), event-driven architectures.
+* **Example (RxJS):**
+    ```javascript
+    import { fromEvent, map, filter, throttleTime } from 'rxjs';
+
+    // Create a stream of mouse clicks
+    const button = document.getElementById('myButton');
+    const click$ = fromEvent(button, 'click');
+
+    // Transform the stream
+    click$.pipe(
+      throttleTime(1000), // Throttle to 1 click/second
+      map(event => ({ x: event.clientX, y: event.clientY })), // Extract coordinates
+      filter(pos => pos.x > 100) // Only allow clicks past x=100
+    ).subscribe(pos => {
+      console.log('Valid click at:', pos);
+    });
+    ```
+
+---
+
+**14. Tail Call Optimization (TCO)**
+
+* **Concept:** A compiler optimization where the last action of a function is a recursive call, reusing the current stack frame. While ES6 specifies TCO, most JS engines don’t fully implement it.
+* **Use Case:** Avoiding stack overflow in deep recursion.
+* **Example (Theoretical):**
+    ```javascript
+    // Non-TCO recursive factorial
+    const factorial = (n) => 
+      n <= 1 ? 1 : n * factorial(n - 1); // Stack grows with n
+
+    // Tail-recursive factorial (requires TCO support)
+    const factorialTail = (n, acc = 1) => 
+      n <= 1 ? acc : factorialTail(n - 1, acc * n);
+
+    console.log(factorialTail(5)); // 120 (Works in engines with TCO)
+    ```
+
+---
+
+**15. Applicative Functors**
+
+* **Concept:** Extend Functors by allowing functions within a context to be applied to values in the same context. Useful for combining multiple wrapped values (e.g., combining two `Maybe` values).
+* **Use Case:** Validating multiple inputs where each might fail, combining async operations.
+* **Example (Using Folktale's `Maybe`):**
+    ```javascript
+    import * as F from 'folktale';
+
+    const add = (a, b) => a + b;
+
+    // Applicative application
+    const maybeAdd = F.maybe.of(add.curry()); // Wrap the function
+    const maybeA = F.maybe.of(2);            // Wrap value 2
+    const maybeB = F.maybe.of(3);            // Wrap value 3
+
+    const result = maybeA.ap(maybeB.ap(maybeAdd));
+    console.log(result); // Maybe.Just(5)
+    ```
+
+---
+
+**16. Generators & Lazy Sequences**
+
+* **Concept:** Generate values on-demand using `function*` and `yield`, enabling lazy evaluation for memory efficiency with large/infinite datasets.
+* **Use Case:** Processing large files line-by-line, infinite sequences (e.g., Fibonacci), custom iterators.
+* **Example:**
+    ```javascript
+    // Infinite Fibonacci sequence
+    function* fibonacci() {
+      let [a, b] = [0, 1];
+      while (true) {
+        yield a;
+        [a, b] = [b, a + b];
+      }
+    }
+
+    const fibGen = fibonacci();
+    console.log(Array.from({ length: 10 }, () => fibGen.next().value));
+    // [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+    ```
+
+---
+
+**17. Church Encoding**
+
+* **Concept:** Representing data and operations using only functions (from lambda calculus). Demonstrates FP’s theoretical roots but less common in practical JS.
+* **Example (Church Numerals):**
+    ```javascript
+    // Define numbers as functions
+    const zero = f => x => x;
+    const one = f => x => f(x);
+    const two = f => x => f(f(x));
+
+    // Convert to JS number
+    const toNumber = n => n(x => x + 1)(0);
+    console.log(toNumber(two)); // 2
+
+    // Church addition
+    const add = m => n => f => x => n(f)(m(f)(x));
+    console.log(toNumber(add(one)(two))); // 3
+    ```
+
+---
+
+**Key Takeaways:**
+- **Functional Patterns in JS:** While JS isn’t purely functional, these patterns enable writing declarative, side-effect-free code.
+- **Libraries:** Leverage libraries like Ramda, Lodash/fp, RxJS, and Folktale for battle-tested implementations.
+- **Balance:** Mix FP with other paradigms where appropriate (e.g., FP for data transformations, OOP for UI components).
 
